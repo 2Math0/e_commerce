@@ -1,11 +1,15 @@
 import 'package:e_commerce/app/app_routes.dart';
 import 'package:e_commerce/bloc/profile/bloc.dart';
+import 'package:e_commerce/widgets/auth_button.dart';
+import 'package:e_commerce/widgets/txt_field.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:e_commerce/bloc/authentication/bloc.dart';
+import 'package:logger/logger.dart';
 
 class UserProfile {
+  String userId;
   String name;
   String lastName;
   String address;
@@ -14,6 +18,7 @@ class UserProfile {
   String country;
 
   UserProfile({
+    required this.userId,
     required this.name,
     required this.lastName,
     required this.address,
@@ -39,24 +44,12 @@ class ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _countryController;
 
   final GlobalKey<ScaffoldState> profileKey = GlobalKey<ScaffoldState>();
+  late AuthenticationBloc authBloc;
 
   @override
   void initState() {
     super.initState();
-
-    // Get the ProductBloc instance
-    final authBloc = BlocProvider.of<AuthenticationBloc>(context);
-
-    // Dispatch the Authentication event only if the state is ProductInitial
-    if (authBloc.state is AuthenticationInitial) {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        authBloc.add(UserLoggedInEvent(currentUser));
-      } else {
-        authBloc.add(UserLoggedOutEvent());
-      }
-    }
-
+    authBloc = BlocProvider.of<AuthenticationBloc>(context);
     // Initialize controllers with empty values
     _nameController = TextEditingController();
     _lastNameController = TextEditingController();
@@ -73,12 +66,42 @@ class ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Profile'),
       ),
-      body: BlocBuilder<AuthenticationBloc, AuthenticationState>(
+      body: BlocConsumer<AuthenticationBloc, AuthenticationState>(
         builder: (context, state) {
-          if (state is Authenticated) {
-            return _buildProfileContent(context, state.user);
-          } else if (state is AuthenticationInitial) {
+          if (state is AuthenticationInitial) {
+            Logger().i('user');
+            try {
+              authBloc.add(const AuthCheckRequested());
+            } catch (e) {
+              Logger().e(e);
+            }
             return const Center(child: CircularProgressIndicator());
+          } else if (state is Authenticated) {
+            Logger().i('authenticated');
+            return BlocBuilder<ProfileBloc, ProfileState>(
+              builder: (context, state) {
+                if (state is ProfileLoaded) {
+                  // Display the profile data in the UI
+                  final UserProfile userProfile = state.userProfile;
+                  _nameController.text = userProfile.name;
+                  _lastNameController.text = userProfile.lastName;
+                  _addressController.text = userProfile.address;
+                  _ageController.text = userProfile.age.toString();
+                  _cityController.text = userProfile.city;
+                  _countryController.text = userProfile.country;
+
+                  return _buildProfileContent(context, userProfile);
+                } else if (state is ProfileError) {
+                  // Handle error state
+                  return Center(child: Text('Error: ${state.error}'));
+                } else if (state is ProfileInitial) {
+                  return const Center(child: CircularProgressIndicator());
+                } else {
+                  // Handle other states if needed
+                  return const SizedBox.shrink();
+                }
+              },
+            );
           } else {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _showSignInDialog(context);
@@ -86,40 +109,52 @@ class ProfileScreenState extends State<ProfileScreen> {
             return _buildNonAuthenticatedContent();
           }
         },
+        listener: (BuildContext context, AuthenticationState state) {
+          final user = (authBloc.state as Authenticated).user;
+          BlocProvider.of<ProfileBloc>(context).add(FetchProfile(user));
+        },
       ),
     );
   }
 
-  Widget _buildProfileContent(BuildContext context, User user) {
+  Widget _buildProfileContent(BuildContext context, UserProfile user) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Welcome, ${user.displayName}!',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Edit Your Profile:',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          _buildTextField('Name', _nameController),
-          _buildTextField('Last Name', _lastNameController),
-          _buildTextField('Address', _addressController),
-          _buildTextField('Age', _ageController),
-          _buildTextField('City', _cityController),
-          _buildTextField('Country', _countryController),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              _updateUserProfile(context, user);
-            },
-            child: const Text('Update Profile'),
-          ),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Text(
+                'Welcome, ${user.name}!',
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Center(
+              child: Text(
+                'Edit Your Profile:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 8),
+            CustomTextField(hintText: 'Name', controller: _nameController),
+            CustomTextField(
+                hintText: 'Last Name', controller: _lastNameController),
+            CustomTextField(
+                hintText: 'Address', controller: _addressController),
+            CustomTextField(hintText: 'Age', controller: _ageController),
+            CustomTextField(hintText: 'City', controller: _cityController),
+            CustomTextField(
+                hintText: 'Country', controller: _countryController),
+            const SizedBox(height: 16),
+            AuthBtn(
+              onTap: () => _updateUserProfile(context, user),
+              title: 'Update Profile',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -160,20 +195,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildTextField(String labelText, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: labelText,
-          border: const OutlineInputBorder(),
-        ),
-      ),
-    );
-  }
-
-  void _updateUserProfile(BuildContext context, User user) {
+  void _updateUserProfile(BuildContext context, UserProfile user) {
     // Retrieve user input from controllers
     final String name = _nameController.text;
     final String lastName = _lastNameController.text;
@@ -183,6 +205,9 @@ class ProfileScreenState extends State<ProfileScreen> {
     final String country = _countryController.text;
 
     // Create a UserProfile object with the updated data
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+
+    // Update the user profile in Firestore using the user ID
     final updatedProfile = UserProfile(
       name: name,
       lastName: lastName,
@@ -190,11 +215,10 @@ class ProfileScreenState extends State<ProfileScreen> {
       age: age,
       city: city,
       country: country,
+      userId: userId,
     );
 
-    // Dispatch an event to update the user's profile
-    // You'll need to implement a ProfileBloc for this functionality
-    // and dispatch an event like UpdateProfile(updatedProfile)
-    // BlocProvider.of<ProfileBloc>(context).add(UpdateProfile(updatedProfile));
+    BlocProvider.of<ProfileBloc>(context)
+        .add(UpdateProfile(user: user, updatedProfile: updatedProfile));
   }
 }

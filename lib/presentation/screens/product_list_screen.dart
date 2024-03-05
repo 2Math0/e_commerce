@@ -81,6 +81,9 @@ class ProductListScreenState extends State<ProductListScreen> {
           if (state is ProductInitial) {
             return const Center(child: CircularProgressIndicator());
           } else if (state is ProductsLoaded) {
+            if (state.products.isEmpty) {
+              return const Center(child: Text('No Products Available'));
+            }
             return ListView.builder(
               itemCount: state.products.length,
               itemBuilder: (context, index) {
@@ -151,9 +154,8 @@ class ProductListScreenState extends State<ProductListScreen> {
     BlocProvider.of<ProductBloc>(context).add(
       LoadProducts(
         searchTerm: _searchController.text,
-        categories: _selectedCategories.contains('All')
-            ? null
-            : _selectedCategories,
+        categories:
+            _selectedCategories.contains('All') ? null : _selectedCategories,
       ),
     );
   }

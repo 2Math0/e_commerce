@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:logger/logger.dart';
 
 part 'state.dart';
 
@@ -16,8 +17,9 @@ class AuthenticationBloc
     on<UserLoggedOutEvent>(_mapUserLoggedOutToState);
   }
 
-  Stream<AuthenticationState> _mapAuthCheckRequestedToState(
-      AuthCheckRequested event, Emitter<AuthenticationState> emit) async* {
+  void _mapAuthCheckRequestedToState(
+      AuthCheckRequested event, Emitter<AuthenticationState> emit) {
+    Logger().i('checking for user');
     final user = _firebaseAuth.currentUser;
     if (user != null) {
       emit(Authenticated(user));
@@ -26,13 +28,14 @@ class AuthenticationBloc
     }
   }
 
-  Stream<AuthenticationState> _mapUserLoggedInToState(
-      UserLoggedInEvent event, Emitter<AuthenticationState> emit) async* {
+  void _mapUserLoggedInToState(
+      UserLoggedInEvent event, Emitter<AuthenticationState> emit) {
+    Logger().i("user load event");
     emit(Authenticated(event.user));
   }
 
-  Stream<AuthenticationState> _mapUserLoggedOutToState(
-      UserLoggedOutEvent event, Emitter<AuthenticationState> emit) async* {
+  void _mapUserLoggedOutToState(
+      UserLoggedOutEvent event, Emitter<AuthenticationState> emit) {
     emit(Unauthenticated());
     _firebaseAuth.signOut();
   }

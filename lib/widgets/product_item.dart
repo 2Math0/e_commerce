@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:e_commerce/domain/product.dart';
 import 'package:e_commerce/presentation/screens/product_detail_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:glassmorphism/glassmorphism.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -96,7 +95,7 @@ class ProductItem extends StatelessWidget {
                             color: Colors.red,
                           ),
                           onPressed: () {
-                            // Handle favorite button tap
+                            // add id to fav prefs, if it exists then remove it from fav prefs
                           },
                         ),
                         // Cart button

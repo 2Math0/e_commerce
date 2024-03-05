@@ -67,9 +67,14 @@ class ProductDetailScreen extends StatelessWidget {
                       icon: const Icon(
                         Icons.favorite,
                         color: Colors.red,
+
+                        // by id
+                        // if id is in fav make it red if not make it white
+
                       ),
                       onPressed: () {
-                        // Handle favorite button tap
+                        // add to fav prefs
+                        // remove from fav prefs
                       },
                     ),
                     // Cart button

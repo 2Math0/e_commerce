@@ -41,6 +41,7 @@ dependencies:
   equatable:
   firebase_core:
   firebase_auth:
+  cloud_firestore:
   cached_network_image:
   glassmorphism:
   shared_preferences:
